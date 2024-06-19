@@ -2,20 +2,21 @@ package com.project.test1
 
 import android.content.Context
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.project.test1.databinding.ActivityMealBinding
 import java.sql.Connection
 import java.sql.DriverManager
+import java.sql.SQLException
 import kotlin.concurrent.thread
 
 class MealActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMealBinding
     private lateinit var foodAdapter: FoodAdapter
-    private var foodList = mutableListOf<String>() // 음식 목록
-    private var addedFoodList = mutableListOf<FoodData>() // 추가된 음식 목록
+    private var foodList = mutableListOf<FoodData>() // 음식 목록
     private var mealType: String? = null // 아침, 점심, 저녁 구분
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -48,31 +49,35 @@ class MealActivity : AppCompatActivity() {
     private fun fetchFoodList() {
         thread {
             try {
-                val connection = connectToDatabase()
+                val connection = DatabaseConnection.getConnection()
                 val statement = connection.createStatement()
-                val resultSet = statement.executeQuery("SELECT `식품명` FROM foodsearch")
+                val resultSet = statement.executeQuery("SELECT `식품명` FROM fooddata")
 
                 while (resultSet.next()) {
                     val foodName = resultSet.getString("식품명")
-                    foodList.add(foodName)
+                    foodList.add(FoodData(foodName, 0, 0f, 0f, 0f)) // 기본값으로 초기화
                 }
                 connection.close()
 
                 runOnUiThread {
                     foodAdapter.notifyDataSetChanged()
                 }
-            } catch (e: Exception) {
+            } catch (e: SQLException) {
                 e.printStackTrace()
+                runOnUiThread {
+                    Toast.makeText(this, "데이터를 가져오는 데 실패했습니다.", Toast.LENGTH_SHORT).show()
+                    Log.e("MealActivity", "Error fetching food list: ${e.message}")
+                }
             }
         }
     }
 
     private fun setupRecyclerView() {
-        foodAdapter = FoodAdapter(addedFoodList, { selectedFood ->
-            binding.etFoodName.setText(selectedFood)
-            fetchFoodData(selectedFood)
+        foodAdapter = FoodAdapter(foodList, { selectedFood ->
+            binding.etFoodName.setText(selectedFood.name)
+            fetchFoodData(selectedFood.name)
         }, { position ->
-            addedFoodList.removeAt(position)
+            foodList.removeAt(position)
             foodAdapter.notifyDataSetChanged()
         })
         binding.recyclerView.layoutManager = LinearLayoutManager(this)
@@ -86,7 +91,7 @@ class MealActivity : AppCompatActivity() {
             }
 
             override fun onQueryTextChange(newText: String?): Boolean {
-                // 여기서 검색된 음식 목록을 필터링하는 로직을 추가할 수 있습니다.
+                foodAdapter.filter(newText ?: "")
                 return true
             }
         })
@@ -95,9 +100,9 @@ class MealActivity : AppCompatActivity() {
     private fun fetchFoodData(foodName: String) {
         thread {
             try {
-                val connection = connectToDatabase()
+                val connection = DatabaseConnection.getConnection()
                 val statement = connection.createStatement()
-                val resultSet = statement.executeQuery("SELECT * FROM foodsearch WHERE `식품명` = '$foodName'")
+                val resultSet = statement.executeQuery("SELECT * FROM fooddata WHERE `식품명` = '$foodName'")
 
                 if (resultSet.next()) {
                     val kcal = resultSet.getInt("kcal")
@@ -116,8 +121,12 @@ class MealActivity : AppCompatActivity() {
                     }
                 }
                 connection.close()
-            } catch (e: Exception) {
+            } catch (e: SQLException) {
                 e.printStackTrace()
+                runOnUiThread {
+                    Toast.makeText(this, "음식 데이터를 가져오는 데 실패했습니다.", Toast.LENGTH_SHORT).show()
+                    Log.e("MealActivity", "Error fetching food data: ${e.message}")
+                }
             }
         }
     }
@@ -125,9 +134,9 @@ class MealActivity : AppCompatActivity() {
     private fun addFood(foodName: String) {
         thread {
             try {
-                val connection = connectToDatabase()
+                val connection = DatabaseConnection.getConnection()
                 val statement = connection.createStatement()
-                val resultSet = statement.executeQuery("SELECT * FROM foodsearch WHERE `식품명` = '$foodName'")
+                val resultSet = statement.executeQuery("SELECT * FROM fooddata WHERE `식품명` = '$foodName'")
 
                 if (resultSet.next()) {
                     val kcal = resultSet.getInt("kcal")
@@ -136,15 +145,19 @@ class MealActivity : AppCompatActivity() {
                     val carbs = resultSet.getFloat("carbs")
 
                     val foodData = FoodData(foodName, kcal, protein, fat, carbs)
-                    addedFoodList.add(foodData)
+                    foodList.add(foodData)
 
                     runOnUiThread {
                         foodAdapter.notifyDataSetChanged()
                     }
                 }
                 connection.close()
-            } catch (e: Exception) {
+            } catch (e: SQLException) {
                 e.printStackTrace()
+                runOnUiThread {
+                    Toast.makeText(this, "음식 데이터를 추가하는 데 실패했습니다.", Toast.LENGTH_SHORT).show()
+                    Log.e("MealActivity", "Error adding food data: ${e.message}")
+                }
             }
         }
     }
@@ -158,7 +171,7 @@ class MealActivity : AppCompatActivity() {
         var totalFat = 0.0f
         var totalCarbs = 0.0f
 
-        for (food in addedFoodList) {
+        for (food in foodList) {
             val keyPrefix = "${mealType}_${food.name}"
             editor.putInt("${keyPrefix}_kcal", food.kcal)
             editor.putFloat("${keyPrefix}_protein", food.protein)
@@ -179,12 +192,15 @@ class MealActivity : AppCompatActivity() {
         editor.apply()
     }
 
-    private fun connectToDatabase(): Connection {
-        val url = "jdbc:mysql://localhost:3306/foodsearch"
-        val user = "root"
-        val password = "password"
-        return DriverManager.getConnection(url, user, password)
-    }
-}
+    object DatabaseConnection {
+        private const val URL = "jdbc:mysql://localhost:3306/datasearch"
+        private const val USER = "root"
+        private const val PASSWORD = "1234"
 
-data class FoodData(val name: String, val kcal: Int, val protein: Float, val fat: Float, val carbs: Float)
+        fun getConnection(): Connection {
+            return DriverManager.getConnection(URL, USER, PASSWORD)
+        }
+    }
+
+    data class FoodData(val name: String, val kcal: Int, val protein: Float, val fat: Float, val carbs: Float)
+}

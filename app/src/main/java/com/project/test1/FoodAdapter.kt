@@ -8,10 +8,12 @@ import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 
 class FoodAdapter(
-    private val foodList: MutableList<FoodData>,
-    private val clickListener: (String) -> Unit,
+    private val foodList: MutableList<MealActivity.FoodData>,
+    private val clickListener: (MealActivity.FoodData) -> Unit,
     private val deleteListener: (Int) -> Unit
 ) : RecyclerView.Adapter<FoodAdapter.FoodViewHolder>() {
+
+    private var filteredFoodList: MutableList<MealActivity.FoodData> = foodList.toMutableList()
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FoodViewHolder {
         val view = LayoutInflater.from(parent.context).inflate(R.layout.recycler_view_item, parent, false)
@@ -19,11 +21,20 @@ class FoodAdapter(
     }
 
     override fun onBindViewHolder(holder: FoodViewHolder, position: Int) {
-        holder.bind(foodList[position], clickListener, deleteListener, position)
+        holder.bind(filteredFoodList[position], clickListener, deleteListener, position)
     }
 
     override fun getItemCount(): Int {
-        return foodList.size
+        return filteredFoodList.size
+    }
+
+    fun filter(query: String) {
+        filteredFoodList = if (query.isEmpty()) {
+            foodList.toMutableList()
+        } else {
+            foodList.filter { it.name.contains(query, true) }.toMutableList()
+        }
+        notifyDataSetChanged()
     }
 
     class FoodViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -31,13 +42,13 @@ class FoodAdapter(
         private val deleteButton: Button = itemView.findViewById(R.id.btn_delete_food)
 
         fun bind(
-            food: FoodData,
-            clickListener: (String) -> Unit,
+            food: MealActivity.FoodData,
+            clickListener: (MealActivity.FoodData) -> Unit,
             deleteListener: (Int) -> Unit,
             position: Int
         ) {
             foodNameTextView.text = food.name
-            itemView.setOnClickListener { clickListener(food.name) }
+            itemView.setOnClickListener { clickListener(food) }
             deleteButton.setOnClickListener { deleteListener(position) }
         }
     }
