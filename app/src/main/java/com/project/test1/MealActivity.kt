@@ -7,6 +7,9 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.project.test1.databinding.ActivityMealBinding
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 import java.sql.Connection
 import java.sql.DriverManager
 import java.sql.SQLException
@@ -47,29 +50,22 @@ class MealActivity : AppCompatActivity() {
     }
 
     private fun fetchFoodList() {
-        thread {
-            try {
-                val connection = DatabaseConnection.getConnection()
-                val statement = connection.createStatement()
-                val resultSet = statement.executeQuery("SELECT `식품명` FROM fooddata")
-
-                while (resultSet.next()) {
-                    val foodName = resultSet.getString("식품명")
-                    foodList.add(FoodData(foodName, 0, 0f, 0f, 0f)) // 기본값으로 초기화
-                }
-                connection.close()
-
-                runOnUiThread {
+        val foodApi = RetrofitClient.instance.create(FoodApi::class.java)
+        foodApi.getFoods().enqueue(object : Callback<List<FoodData>> {
+            override fun onResponse(call: Call<List<FoodData>>, response: Response<List<FoodData>>) {
+                if (response.isSuccessful) {
+                    foodList.clear()
+                    response.body()?.let { foodList.addAll(it) }
                     foodAdapter.notifyDataSetChanged()
-                }
-            } catch (e: SQLException) {
-                e.printStackTrace()
-                runOnUiThread {
-                    Toast.makeText(this, "데이터를 가져오는 데 실패했습니다.", Toast.LENGTH_SHORT).show()
-                    Log.e("MealActivity", "Error fetching food list: ${e.message}")
+                } else {
+                    Toast.makeText(this@MealActivity, "데이터를 가져오는 데 실패했습니다.", Toast.LENGTH_SHORT).show()
                 }
             }
-        }
+
+            override fun onFailure(call: Call<List<FoodData>>, t: Throwable) {
+                Toast.makeText(this@MealActivity, "데이터를 가져오는 데 실패했습니다.", Toast.LENGTH_SHORT).show()
+            }
+        })
     }
 
     private fun setupRecyclerView() {
@@ -98,37 +94,22 @@ class MealActivity : AppCompatActivity() {
     }
 
     private fun fetchFoodData(foodName: String) {
-        thread {
-            try {
-                val connection = DatabaseConnection.getConnection()
-                val statement = connection.createStatement()
-                val resultSet = statement.executeQuery("SELECT * FROM fooddata WHERE `식품명` = '$foodName'")
-
-                if (resultSet.next()) {
-                    val kcal = resultSet.getInt("kcal")
-                    val protein = resultSet.getFloat("protein")
-                    val fat = resultSet.getFloat("fat")
-                    val carbs = resultSet.getFloat("carbs")
-                    val sugars = resultSet.getFloat("sugars")
-                    val sodium = resultSet.getFloat("sodium")
-
-                    runOnUiThread {
-                        binding.tvFoodInfo.text = "칼로리: $kcal, 단백질: $protein, 지방: $fat, 탄수화물: $carbs, 당류: $sugars, 나트륨: $sodium"
+        val foodApi = RetrofitClient.instance.create(FoodApi::class.java)
+        foodApi.getFood(foodName).enqueue(object : Callback<FoodData> {
+            override fun onResponse(call: Call<FoodData>, response: Response<FoodData>) {
+                if (response.isSuccessful) {
+                    response.body()?.let { food ->
+                        binding.tvFoodInfo.text = "칼로리: ${food.kcal},, 단백질: ${food.protein}, 지방: ${food.fat}, 탄수화물: ${food.carbs} "
                     }
                 } else {
-                    runOnUiThread {
-                        Toast.makeText(this, "음식을 찾을 수 없습니다.", Toast.LENGTH_SHORT).show()
-                    }
-                }
-                connection.close()
-            } catch (e: SQLException) {
-                e.printStackTrace()
-                runOnUiThread {
-                    Toast.makeText(this, "음식 데이터를 가져오는 데 실패했습니다.", Toast.LENGTH_SHORT).show()
-                    Log.e("MealActivity", "Error fetching food data: ${e.message}")
+                    Toast.makeText(this@MealActivity, "음식을 찾을 수 없습니다.", Toast.LENGTH_SHORT).show()
                 }
             }
-        }
+
+            override fun onFailure(call: Call<FoodData>, t: Throwable) {
+                Toast.makeText(this@MealActivity, "음식 데이터를 가져오는 데 실패했습니다.", Toast.LENGTH_SHORT).show()
+            }
+        })
     }
 
     private fun addFood(foodName: String) {
@@ -202,5 +183,5 @@ class MealActivity : AppCompatActivity() {
         }
     }
 
-    data class FoodData(val name: String, val kcal: Int, val protein: Float, val fat: Float, val carbs: Float)
+    data class FoodData(val name: String, val kcal: Int, val carbs: Float, val protein: Float, val fat: Float)
 }
