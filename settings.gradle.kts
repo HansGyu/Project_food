@@ -13,5 +13,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "YourProjectName"
+rootProject.name = "FoodDiet"
 include(":app")

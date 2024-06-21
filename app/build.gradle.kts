@@ -88,5 +88,6 @@ dependencies {
     implementation("com.squareup.okhttp3:logging-interceptor:4.9.1")
 
     // MySQL JDBC dependency
-    runtimeOnly("mysql:mysql-connector-java:8.0.26")
+    runtimeOnly("mysql:mysql-connector-java:8.0.33")
+    implementation("mysql:mysql-connector-j:8.0.33")
 }
