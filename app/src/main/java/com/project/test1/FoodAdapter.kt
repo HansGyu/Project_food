@@ -3,14 +3,13 @@ package com.project.test1
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 
 class FoodAdapter(
-    private val foodList: MutableList<FoodData>,
-    private val clickListener: (String) -> Unit,
-    private val deleteListener: (Int) -> Unit
+    private var foodList: List<Food>,
+    private val onItemClick: (Food) -> Unit,
+    private val onDeleteClick: (Int) -> Unit
 ) : RecyclerView.Adapter<FoodAdapter.FoodViewHolder>() {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): FoodViewHolder {
@@ -19,26 +18,25 @@ class FoodAdapter(
     }
 
     override fun onBindViewHolder(holder: FoodViewHolder, position: Int) {
-        holder.bind(foodList[position], clickListener, deleteListener, position)
+        val food = foodList[position]
+        holder.bind(food, onItemClick, onDeleteClick)
     }
 
-    override fun getItemCount(): Int {
-        return foodList.size
+    override fun getItemCount(): Int = foodList.size
+
+    fun updateFoodList(newList: List<Food>) {
+        foodList = newList
+        notifyDataSetChanged()
     }
 
     class FoodViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        private val foodNameTextView: TextView = itemView.findViewById(R.id.tv_food_name)
-        private val deleteButton: Button = itemView.findViewById(R.id.btn_delete_food)
+        private val tvFoodName: TextView = itemView.findViewById(R.id.tv_food_name)
+        private val btnDelete: TextView = itemView.findViewById(R.id.btn_delete_food)
 
-        fun bind(
-            food: FoodData,
-            clickListener: (String) -> Unit,
-            deleteListener: (Int) -> Unit,
-            position: Int
-        ) {
-            foodNameTextView.text = food.name
-            itemView.setOnClickListener { clickListener(food.name) }
-            deleteButton.setOnClickListener { deleteListener(position) }
+        fun bind(food: Food, onItemClick: (Food) -> Unit, onDeleteClick: (Int) -> Unit) {
+            tvFoodName.text = food.식품명
+            itemView.setOnClickListener { onItemClick(food) }
+            btnDelete.setOnClickListener { onDeleteClick(adapterPosition) }
         }
     }
 }

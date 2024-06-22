@@ -17,19 +17,19 @@ class DietActivity : AppCompatActivity() {
 
         binding.btnBreakfast.setOnClickListener {
             val intent = Intent(this, MealActivity::class.java)
-            intent.putExtra("mealType", "아침")
+            intent.putExtra("MEAL_TYPE", "아침")
             startActivity(intent)
         }
 
         binding.btnLunch.setOnClickListener {
             val intent = Intent(this, MealActivity::class.java)
-            intent.putExtra("mealType", "점심")
+            intent.putExtra("MEAL_TYPE", "점심")
             startActivity(intent)
         }
 
         binding.btnDinner.setOnClickListener {
             val intent = Intent(this, MealActivity::class.java)
-            intent.putExtra("mealType", "저녁")
+            intent.putExtra("MEAL_TYPE", "저녁")
             startActivity(intent)
         }
     }
